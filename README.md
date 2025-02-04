@@ -1,6 +1,5 @@
 
 
-```
 # OS Security Log Dashboard
 
 This project provides a dashboard for displaying OS security logs in real-time, with visualizations and filtering options for the logs based on severity and category. The frontend of this project uses React, and the backend utilizes WebSocket communication (Socket.io) to stream the logs to the dashboard.
