@@ -8,21 +8,25 @@ const App = () => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch initial logs from the backend
+  // Listen for real-time log updates
   useEffect(() => {
-    // fetch('/logs')
-    //   .then((response) => response.json())
-    //   .then((data) => {
-    //     console.log(JSON.stringify(data));
-    //     setLogs(data);
-    //     setLoading(false);
-    //   });
-
-    // Listen for real-time log updates
     socket.on('log_update', (newLogs) => {
-      setLogs((prevLogs) => [...newLogs, ...prevLogs]);
+      setLogs((prevLogs) => {
+        // Create a set of existing event IDs
+        const existingEventIds = new Set(prevLogs.map((log) => log.event_id));
+
+        // Filter out logs whose event ID already exists in the state
+        const uniqueNewLogs = newLogs.filter((newLog) => !existingEventIds.has(newLog.event_id));
+
+        // Add only unique logs based on event ID
+        return [...uniqueNewLogs, ...prevLogs];
+      });
       setLoading(false);
     });
+
+    return () => {
+      socket.off('log_update'); // Clean up the socket listener when component unmounts
+    };
   }, []);
 
   return (

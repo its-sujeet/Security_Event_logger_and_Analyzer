@@ -51,7 +51,7 @@ def init_db():
     conn.commit()
     conn.close()
 
-# Log collection
+
 def collect_logs():
     last_record_id = 0
     while True:
@@ -101,6 +101,9 @@ def collect_logs():
         
         time.sleep(10)
 
+
+
+
 # API endpoint
 # @app.route('/logs', methods=['GET'])
 # def get_logs():
@@ -132,7 +135,7 @@ def stream_logs():
             SELECT event_id, source, time_generated, category, event_type, message 
             FROM logs 
             ORDER BY time_generated DESC 
-            LIMIT 5
+            
         """)
         logs = [{
             "event_id": row[0],
