@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Container, Typography, Table, TableHead, TableRow, TableCell, TableBody, CircularProgress, Button } from '@mui/material';
+import { Container, Typography, Table, TableHead, TableRow, TableCell, TableBody, CircularProgress, Button, Grid, Paper } from '@mui/material';
 import { io } from 'socket.io-client';
+import { Bar, Pie } from 'react-chartjs-2';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement } from 'chart.js';
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
 const socket = io('http://localhost:5000');
 
@@ -9,6 +13,7 @@ const App = () => {
   const [loading, setLoading] = useState(true);
   const [filterSeverity, setFilterSeverity] = useState('All');
   const [filterCategory, setFilterCategory] = useState('All');
+  const [showCharts, setShowCharts] = useState(false);
 
   useEffect(() => {
     socket.on('log_update', (newLogs) => {
@@ -39,6 +44,54 @@ const App = () => {
     }
   };
 
+  const getSeverityData = () => {
+    const severityCount = { Critical: 0, Warning: 0, Normal: 0 };
+    logs.forEach(log => {
+      severityCount[log.severity]++;
+    });
+    return {
+      labels: ['Critical', 'Warning', 'Normal'],
+      datasets: [{
+        data: [severityCount.Critical, severityCount.Warning, severityCount.Normal],
+        backgroundColor: ['#FF4C4C', '#FFD700', '#4CAF50'],
+      }]
+    };
+  };
+
+  const getCategoryData = () => {
+    const categoryCount = { Application: 0, Security: 0, System: 0 };
+    logs.forEach(log => {
+      categoryCount[log.category]++;
+    });
+    return {
+      labels: ['Application', 'Security', 'System'],
+      datasets: [{
+        data: [categoryCount.Application, categoryCount.Security, categoryCount.System],
+        backgroundColor: ['#1E90FF', '#FF6347', '#32CD32'],
+      }]
+    };
+  };
+
+  const getTimeTrendData = () => {
+    const timeSeries = {};
+    logs.forEach(log => {
+      const time = new Date(log.time_generated).toLocaleDateString();
+      timeSeries[time] = (timeSeries[time] || 0) + 1;
+    });
+
+    const labels = Object.keys(timeSeries);
+    const data = Object.values(timeSeries);
+
+    return {
+      labels,
+      datasets: [{
+        label: 'Logs per Day',
+        data,
+        backgroundColor: '#6A5ACD',
+      }]
+    };
+  };
+
   return (
     <Container>
       <Typography variant="h3" gutterBottom>
@@ -59,33 +112,68 @@ const App = () => {
         <Button onClick={() => setFilterSeverity('Normal')} style={{ color: 'green' }}>Normal</Button>
       </div>
 
+      <Button
+        onClick={() => setShowCharts((prev) => !prev)}
+        style={{ marginBottom: '20px', backgroundColor: '#4CAF50', color: 'white' }}
+      >
+        {showCharts ? 'Hide Charts' : 'Show Charts'}
+      </Button>
+
       {loading ? (
         <CircularProgress />
       ) : (
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Event ID</TableCell>
-              <TableCell>Category</TableCell>
-              <TableCell>Source</TableCell>
-              <TableCell>Time Generated</TableCell>
-              <TableCell>Severity</TableCell>
-              <TableCell>Message</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {filteredLogs.map((log, index) => (
-              <TableRow key={index} style={getRowStyle(log.severity)}>
-                <TableCell>{log.event_id}</TableCell>
-                <TableCell>{log.category}</TableCell>
-                <TableCell>{log.source}</TableCell>
-                <TableCell>{log.time_generated}</TableCell>
-                <TableCell>{log.severity}</TableCell>
-                <TableCell>{log.message}</TableCell>
+        <>
+          {showCharts && (
+            <Paper style={{ padding: '20px', marginBottom: '20px' }}>
+              <Typography variant="h5" gutterBottom>
+                Data Visualizations
+              </Typography>
+
+              <Grid container spacing={3}>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="h6">Severity Distribution</Typography>
+                  <Pie data={getSeverityData()} />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="h6">Category Distribution</Typography>
+                  <Pie data={getCategoryData()} />
+                </Grid>
+              </Grid>
+
+              <Grid container spacing={3} style={{ marginTop: '20px' }}>
+                <Grid item xs={12}>
+                  <Typography variant="h6">Log Trend Over Time</Typography>
+                  <Bar data={getTimeTrendData()} />
+                </Grid>
+              </Grid>
+            </Paper>
+          )}
+
+          <Table>
+            <TableHead style={{ backgroundColor: '#f5f5f5' }}>
+              <TableRow>
+                <TableCell style={{ fontWeight: 'bold', color: '#000' }}>Event ID</TableCell>
+                <TableCell style={{ fontWeight: 'bold', color: '#000' }}>Category</TableCell>
+                <TableCell style={{ fontWeight: 'bold', color: '#000' }}>Source</TableCell>
+                <TableCell style={{ fontWeight: 'bold', color: '#000' }}>Time Generated</TableCell>
+                <TableCell style={{ fontWeight: 'bold', color: '#000' }}>Severity</TableCell>
+                <TableCell style={{ fontWeight: 'bold', color: '#000' }}>Message</TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHead>
+            <TableBody>
+              {filteredLogs.map((log, index) => (
+                <TableRow key={index} style={getRowStyle(log.severity)}>
+                  <TableCell>{log.event_id}</TableCell>
+                  <TableCell>{log.category}</TableCell>
+                  <TableCell>{log.source}</TableCell>
+                  <TableCell>{log.time_generated}</TableCell>
+                  <TableCell>{log.severity}</TableCell>
+                  <TableCell>{log.message}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </>
       )}
     </Container>
   );
