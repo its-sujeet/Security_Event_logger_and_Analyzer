@@ -56,7 +56,7 @@ Run the following command to start the React development server:
 npm start
 ```
 
-This will start the frontend application, which will be available at `http://localhost:3000`.
+This will start the frontend application, which will be available at `http://localhost:5173`.
 
 ### 5. Verify the setup
 
