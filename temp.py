@@ -91,6 +91,13 @@ def collect_logs():
             win32evtlog.CloseEventLog(hand)
         
         time.sleep(10)
+def classify_severity(event_type):
+    if event_type in [1]:  # Example: 1 = Critical
+        return "Critical"
+    elif event_type in [2, 3]:  # Example: 2, 3 = Warning
+        return "Warning"
+    else:
+        return "Normal"  # Default
 
 def stream_logs():
     while True:
@@ -107,12 +114,14 @@ def stream_logs():
             "time_generated": row[2],
             "category": row[3],
             "event_type": row[4],
+            "severity": classify_severity(row[4]),  # Add severity field
             "message": row[5]
         } for row in cursor.fetchall()]
         conn.close()
-        
+
         socketio.emit('log_update', logs)
         time.sleep(5)
+
 
 def start_background_tasks():
     collector = threading.Thread(target=collect_logs)
