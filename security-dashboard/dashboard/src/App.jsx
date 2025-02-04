@@ -18,8 +18,8 @@ const App = () => {
         // Filter out logs whose event ID already exists in the state
         const uniqueNewLogs = newLogs.filter((newLog) => !existingEventIds.has(newLog.event_id));
 
-        // Add only unique logs based on event ID
-        return [...uniqueNewLogs, ...prevLogs];
+        // Add only unique logs based on event ID and sort by timestamp (latest first)
+        return [...uniqueNewLogs, ...prevLogs].sort((a, b) => new Date(b.time_generated) - new Date(a.time_generated));
       });
       setLoading(false);
     });
