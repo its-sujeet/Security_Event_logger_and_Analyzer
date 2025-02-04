@@ -1,6 +1,4 @@
-Here’s the formatted version of your project:
 
----
 
 # OS Security Log Dashboard
 
@@ -157,4 +155,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-This format should be clear and easy to follow!
