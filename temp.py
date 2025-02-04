@@ -25,11 +25,12 @@ def init_db():
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            event_id INTEGER UNIQUE,
+            event_id INTEGER,
+            category TEXT,
             source TEXT,
             time_generated TEXT,
-            category INTEGER,
             event_type INTEGER,
+            severity TEXT,
             message TEXT,
             record_id INTEGER UNIQUE
         )
@@ -37,91 +38,95 @@ def init_db():
     conn.commit()
     conn.close()
 
-def event_exists(event_id):
+def event_exists(event_id, category):
     conn = sqlite3.connect("security_logs.db")
     cursor = conn.cursor()
-    cursor.execute("SELECT 1 FROM logs WHERE event_id = ?", (event_id,))
+    cursor.execute("SELECT 1 FROM logs WHERE event_id = ? AND category = ?", (event_id, category))
     exists = cursor.fetchone() is not None
     conn.close()
     return exists
 
+def classify_severity(event_type):
+    if event_type == 1:
+        return "Critical"
+    elif event_type in [2, 3]:
+        return "Warning"
+    else:
+        return "Normal"
+
 def collect_logs():
+    log_categories = ["Application", "Security", "System"]  # Fetch logs from multiple categories
+
     while True:
         try:
-            hand = win32evtlog.OpenEventLog(None, 'Security')
-            flags = win32evtlog.EVENTLOG_FORWARDS_READ | win32evtlog.EVENTLOG_SEQUENTIAL_READ
-            
-            while True:
-                events = win32evtlog.ReadEventLog(hand, flags, 0)
-                if not events:
-                    break
+            for category in log_categories:
+                hand = win32evtlog.OpenEventLog(None, category)
+                flags = win32evtlog.EVENTLOG_FORWARDS_READ | win32evtlog.EVENTLOG_SEQUENTIAL_READ
 
-                for event in events:
-                    if event_exists(event.EventID):
-                        continue
+                while True:
+                    events = win32evtlog.ReadEventLog(hand, flags, 0)
+                    if not events:
+                        break
 
-                    message = win32evtlogutil.SafeFormatMessage(event, 'Security')
-                    log_entry = (
-                        event.EventID,
-                        event.SourceName,
-                        event.TimeGenerated.Format(),
-                        event.EventCategory,
-                        event.EventType,
-                        message,
-                        event.RecordNumber
-                    )
+                    for event in events:
+                        if event_exists(event.EventID, category):
+                            continue
 
-                    conn = sqlite3.connect("security_logs.db")
-                    cursor = conn.cursor()
-                    try:
-                        cursor.execute("""
-                            INSERT INTO logs 
-                            (event_id, source, time_generated, category, event_type, message, record_id)
-                            VALUES (?, ?, ?, ?, ?, ?, ?)
-                        """, log_entry)
-                        conn.commit()
-                    except sqlite3.IntegrityError:
-                        pass
-                    finally:
-                        conn.close()
+                        message = win32evtlogutil.SafeFormatMessage(event, category)
+                        log_entry = (
+                            event.EventID,
+                            category,
+                            event.SourceName,
+                            event.TimeGenerated.Format(),
+                            event.EventType,
+                            classify_severity(event.EventType),
+                            message,
+                            event.RecordNumber
+                        )
+
+                        conn = sqlite3.connect("security_logs.db")
+                        cursor = conn.cursor()
+                        try:
+                            cursor.execute("""
+                                INSERT INTO logs 
+                                (event_id, category, source, time_generated, event_type, severity, message, record_id)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            """, log_entry)
+                            conn.commit()
+                        except sqlite3.IntegrityError:
+                            pass
+                        finally:
+                            conn.close()
+
+                win32evtlog.CloseEventLog(hand)
 
         except Exception as e:
             print(f"Error collecting logs: {e}")
-        finally:
-            win32evtlog.CloseEventLog(hand)
-        
+
         time.sleep(10)
-def classify_severity(event_type):
-    if event_type in [1]:  # Example: 1 = Critical
-        return "Critical"
-    elif event_type in [2, 3]:  # Example: 2, 3 = Warning
-        return "Warning"
-    else:
-        return "Normal"  # Default
 
 def stream_logs():
     while True:
         conn = sqlite3.connect("security_logs.db")
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT event_id, source, time_generated, category, event_type, message 
+            SELECT event_id, category, source, time_generated, event_type, severity, message 
             FROM logs 
             ORDER BY time_generated DESC
         """)
         logs = [{
             "event_id": row[0],
-            "source": row[1],
-            "time_generated": row[2],
-            "category": row[3],
+            "category": row[1],
+            "source": row[2],
+            "time_generated": row[3],
             "event_type": row[4],
-            "severity": classify_severity(row[4]),  # Add severity field
-            "message": row[5]
+            "severity": row[5],
+            "message": row[6]
         } for row in cursor.fetchall()]
         conn.close()
 
         socketio.emit('log_update', logs)
         time.sleep(5)
-
 
 def start_background_tasks():
     collector = threading.Thread(target=collect_logs)
