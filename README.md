@@ -1,4 +1,6 @@
+Here’s the formatted version of your project:
 
+---
 
 # OS Security Log Dashboard
 
@@ -48,6 +50,12 @@ or, if you're using yarn:
 yarn install
 ```
 
+Install the required frontend packages:
+
+```bash
+npm install @mui/material react-chartjs-2 chart.js socket.io-client
+```
+
 ### 4. Start the development server
 
 Run the following command to start the React development server:
@@ -84,12 +92,56 @@ security-dashboard/
 │   └── vite.config.js     # Vite configuration for the build tool
 ```
 
+---
+
+### 6. Navigate to the backend directory
+
+Move into the backend folder:
+
+```bash
+cd os-security-log-dashboard
+```
+
+### 7. Install backend dependencies
+
+Make sure you have Flask, Flask-SocketIO, pywin32, and other dependencies installed. You can install them by running:
+
+```bash
+pip install -r requirements.txt
+```
+
+Where `requirements.txt` should contain:
+
+```
+Flask==2.2.2
+Flask-SocketIO==5.3.0
+pywin32==303
+sqlite3==2.6.0
+flask_cors==3.1.1
+```
+
+### 8. Run the backend
+
+Run the following command to start the backend server:
+
+```bash
+python realtime_logs.py
+```
+
+The backend will start and listen on `http://localhost:5000`. It will collect Windows Event Logs in real-time and stream them to the frontend via WebSocket.
+
+---
+
 ## Troubleshooting
 
 - **Frontend not connecting to the backend**:
   - Ensure the backend is running and accessible at the expected URL (check WebSocket server URL).
   - Open the browser’s console (F12) and look for any errors related to WebSocket or the connection.
-- **Backend not emitting logs**: Make sure the backend server is emitting the correct `log_update` event. Test this by sending mock data or connecting a client to the backend.
+  
+- **Backend not emitting logs**:
+  - Make sure the backend server is emitting the correct `log_update` event. Test this by sending mock data or connecting a client to the backend.
+
+---
 
 ## License
 
@@ -102,5 +154,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [Socket.io](https://socket.io/) - for real-time communication between frontend and backend
 - [Chart.js](https://www.chartjs.org/) - for creating charts
 - [Vite](https://vitejs.dev/) - for fast frontend development
-```
 
+---
+
+This format should be clear and easy to follow!
