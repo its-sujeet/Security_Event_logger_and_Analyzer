@@ -23,7 +23,7 @@ Ensure you have the following installed:
 Clone this repository to your local machine:
 
 ```bash
-git clone https://github.com/your-username/os-security-log-dashboard.git
+git clone https://github.com/its-sujeet/os_project.git
 ```
 
 ### 2. Navigate to the dashboard directory
