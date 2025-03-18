@@ -59,7 +59,7 @@ npm install @mui/material react-chartjs-2 chart.js socket.io-client
 Run the following command to start the React development server:
 
 ```bash
-npm start
+npm run dev
 ```
 
 This will start the frontend application, which will be available at `http://localhost:5173`.
