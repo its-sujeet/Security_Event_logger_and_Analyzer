@@ -48,10 +48,11 @@ const App = () => {
   const [chatMessages, setChatMessages] = useState([]);
   const [selectedLog, setSelectedLog] = useState(null);
   const [error, setError] = useState(null);
+  const [isSending, setIsSending] = useState(false);
   const lastScrollY = useRef(0);
   const severityChartRef = useRef(null);
   const categoryChartRef = useRef(null);
-  const chatBoxRef = useRef(null); // Ref for auto-scrolling chat
+  const chatBoxRef = useRef(null);
 
   useEffect(() => {
     socket.on('connect', () => {
@@ -90,12 +91,11 @@ const App = () => {
     };
   }, []);
 
-  // Auto-scroll to bottom when new messages are added
   useEffect(() => {
     if (chatBoxRef.current) {
       chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
     }
-  }, [chatMessages]);
+  }, [chatMessages, isSending]);
 
   const filteredLogs = logs.filter(
     (log) =>
@@ -205,57 +205,60 @@ const App = () => {
     setSelectedLog(selected || null);
   };
 
-  // const handleChatSubmit = async () => {
-  //   if (!chatInput || !selectedLog) return;
+  const sanitizeText = (text) => {
+    return text
+      .replace(/â/g, '"')
+      .replace(/â/g, '"')
+      .replace(/â/g, "'")
+      .replace(/[^\x00-\x7F]/g, '');
+  };
 
-  //   try {
-  //     console.log('Sending chat request:', { input_text: chatInput, event_details: selectedLog });
-  //     const response = await axios.post('http://127.0.0.1:5143/api/chat', {
-  //       input_text: chatInput,
-  //       event_details: selectedLog,
-  //     }, { timeout: 5000 });
-
-  //     console.log('Chat response:', response.data);
-  //     setChatMessages((prev) => [
-  //       ...prev,
-  //       { user: chatInput, ai: response.data.response, event_id: selectedLog.event_id },
-  //     ]);
-  //     setChatInput('');
-  //     setError(null);
-  //   } catch (error) {
-  //     console.error('Chat API error:', error.response?.data || error.message);
-  //     setError(`Failed to get AI response: ${error.response?.data?.error || error.message}`);
-  //   }
-  // };
+  const formatAiResponse = (text) => {
+    return text
+      .replace(/^# (.*)$/gm, '<h1 style="font-size: 1.2rem; font-weight: bold; color: #FF4C4C; margin: 10px 0 5px 0; text-align: left;">$1</h1>')
+      .replace(/^## (.*)$/gm, '<h2 style="font-size: 1rem; font-weight: bold; color: #FF8C8C; margin: 8px 0 4px 0; text-align: left;">$1</h2>')
+      .replace(/\*\*(.*?)\*\*/g, '<strong style="font-weight: bold;">$1</strong>')
+      .replace(/\n/g, '<br/>');
+  };
 
   const handleChatSubmit = async () => {
     if (!chatInput || !selectedLog) return;
-  
+
+    setChatMessages((prev) => [
+      ...prev,
+      { user: chatInput, event_id: selectedLog.event_id },
+    ]);
+    setIsSending(true);
+
     try {
       const prevMessages = chatMessages
-        .filter(msg => msg.event_id === selectedLog.event_id)
-        .map(msg => ({
+        .filter((msg) => msg.event_id === selectedLog.event_id)
+        .map((msg) => ({
           role: msg.user ? 'user' : 'assistant',
-          content: msg.user || msg.ai
+          content: msg.user || msg.ai,
         }));
-  
-      const response = await axios.post('http://127.0.0.1:5143/api/chat', {
-        input_text: chatInput,
-        params: { api_model: "o3-mini", event_details: selectedLog },  // Include event_details in params
-        prev_messages: prevMessages.map(msg => JSON.stringify(msg))  // Match backend expectation
-      }, { timeout: 5000 });
-  
+
+      const response = await axios.post(
+        'http://127.0.0.1:5143/api/chat',
+        {
+          input_text: chatInput,
+          params: { api_model: 'o3-mini', event_details: selectedLog },
+          prev_messages: prevMessages.map((msg) => JSON.stringify(msg)),
+        },
+        { timeout: 15000, responseEncoding: 'utf8' }
+      );
+
       const responseData = response.data;
       if (responseData.response) {
-        setChatMessages(prev => [
-          ...prev,
+        const sanitizedResponse = sanitizeText(responseData.response);
+        setChatMessages((prev) => [
+          ...prev.slice(0, -1),
           {
             user: chatInput,
-            ai: responseData.response,
-            event_id: selectedLog.event_id
-          }
+            ai: sanitizedResponse,
+            event_id: selectedLog.event_id,
+          },
         ]);
-        setChatInput('');
         setError(null);
       } else {
         setError(responseData.error || 'Failed to get response');
@@ -263,9 +266,11 @@ const App = () => {
     } catch (error) {
       console.error('Chat API error:', error);
       setError(`Failed to get AI response: ${error.message}`);
+    } finally {
+      setIsSending(false);
+      setChatInput('');
     }
   };
-
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', width: '100%', maxWidth: '100vw', marginLeft: 5, marginRight: 95, padding: 0, background: '#1a1a1a', overflowX: 'hidden' }}>
@@ -416,7 +421,6 @@ const App = () => {
             position: 'relative',
             overflow: 'hidden',
           }}>
-            {/* Chat Header */}
             <Typography
               variant="h5"
               style={{
@@ -430,16 +434,15 @@ const App = () => {
                 WebkitTextFillColor: 'transparent',
               }}
             >
-              AI Analyzer  {selectedLog ? `(Event ID: ${selectedLog.event_id})` : '(Select a log)'}
+              AI Analyzer {selectedLog ? `(Event ID: ${selectedLog.event_id})` : '(Select a log)'}
             </Typography>
 
-            {/* Chat Messages */}
             <Box
               ref={chatBoxRef}
               style={{
                 maxHeight: '400px',
                 overflowY: 'auto',
-                padding: '10px',
+                padding: '15px',
                 background: 'rgba(255, 255, 255, 0.05)',
                 borderRadius: '10px',
                 backdropFilter: 'blur(5px)',
@@ -447,59 +450,94 @@ const App = () => {
                 scrollbarColor: '#FF4C4C #2d2d2d',
               }}
             >
-              {chatMessages.length === 0 ? (
+              {chatMessages.length === 0 && !isSending ? (
                 <Typography style={{ color: '#888', textAlign: 'center', fontStyle: 'italic' }}>
                   Start the conversation...
                 </Typography>
               ) : (
-                chatMessages.map((msg, idx) => (
-                  <div key={idx} className="message-container">
-                    {/* User Message */}
-                    <div style={{
-                      display: 'flex',
-                      justifyContent: 'flex-end',
-                      marginBottom: '10px',
-                    }}>
-                      <div style={{
-                        maxWidth: '70%',
-                        background: 'linear-gradient(135deg, #FF4C4C, #FF8C8C)',
-                        color: '#fff',
-                        padding: '10px 15px',
-                        borderRadius: '15px 15px 0 15px',
-                        boxShadow: '0 4px 15px rgba(255, 76, 76, 0.4)',
-                        animation: 'fadeIn 0.3s ease-in',
-                      }}>
-                        <Typography style={{ fontSize: '0.9rem', fontWeight: '500' }}>
-                          {msg.user}
-                        </Typography>
-                      </div>
+                <>
+                  {chatMessages.map((msg, idx) => (
+                    <div key={idx} className="message-container" style={{ marginBottom: '20px' }}>
+                      {msg.user && (
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'flex-end',
+                          marginBottom: '10px',
+                        }}>
+                          <div style={{
+                            maxWidth: '70%',
+                            background: 'linear-gradient(135deg, #FF4C4C, #FF8C8C)',
+                            color: '#fff',
+                            padding: '10px 15px',
+                            borderRadius: '15px',
+                            boxShadow: '0 4px 15px rgba(255, 76, 76, 0.4)',
+                            animation: 'fadeIn 0.3s ease-in',
+                            textAlign: 'left', // Ensure user text is left-aligned within bubble
+                          }}>
+                            <Typography style={{ fontSize: '0.9rem', fontWeight: '500' }}>
+                              {msg.user}
+                            </Typography>
+                          </div>
+                        </div>
+                      )}
+                      {msg.ai && (
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'flex-start',
+                          marginBottom: '10px',
+                        }}>
+                          <div style={{
+                            maxWidth: '90%',
+                            background: 'linear-gradient(135deg, #2d2d2d, #4a4a4a)',
+                            color: '#FF4C4C',
+                            padding: '15px',
+                            borderRadius: '15px',
+                            boxShadow: '0 4px 15px rgba(0, 0, 0, 0.3)',
+                            animation: 'fadeIn 0.3s ease-in',
+                            whiteSpace: 'pre-wrap',
+                            textAlign: 'left', // Explicitly left-align the container
+                          }}>
+                            <Typography
+                              style={{
+                                fontSize: '0.9rem',
+                                fontWeight: '400',
+                                color: '#fff',
+                                textAlign: 'left', // Explicitly left-align the text
+                              }}
+                              component="div"
+                              dangerouslySetInnerHTML={{ __html: formatAiResponse(msg.ai) }}
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    {/* AI Message */}
+                  ))}
+                  {isSending && (
                     <div style={{
                       display: 'flex',
                       justifyContent: 'flex-start',
                       marginBottom: '10px',
                     }}>
                       <div style={{
-                        maxWidth: '70%',
+                        maxWidth: '90%',
                         background: 'linear-gradient(135deg, #2d2d2d, #4a4a4a)',
                         color: '#FF4C4C',
                         padding: '10px 15px',
-                        borderRadius: '15px 15px 15px 0',
+                        borderRadius: '15px',
                         boxShadow: '0 4px 15px rgba(0, 0, 0, 0.3)',
                         animation: 'fadeIn 0.3s ease-in',
+                        textAlign: 'left', // Left-align loading indicator
                       }}>
                         <Typography style={{ fontSize: '0.9rem', fontWeight: '500' }}>
-                          {msg.ai}
+                          <span className="loading-dots">...</span>
                         </Typography>
                       </div>
                     </div>
-                  </div>
-                ))
+                  )}
+                </>
               )}
             </Box>
 
-            {/* Input Area */}
             <div style={{
               display: 'flex',
               gap: '10px',
@@ -511,7 +549,7 @@ const App = () => {
                 onChange={(e) => setChatInput(e.target.value)}
                 placeholder="Type your message..."
                 fullWidth
-                disabled={!selectedLog}
+                disabled={!selectedLog || isSending}
                 style={{
                   background: 'rgba(255, 255, 255, 0.1)',
                   borderRadius: '25px',
@@ -537,12 +575,12 @@ const App = () => {
                     },
                   },
                 }}
-                onKeyPress={(e) => e.key === 'Enter' && handleChatSubmit()}
+                onKeyPress={(e) => e.key === 'Enter' && !isSending && handleChatSubmit()}
               />
               <Button
                 variant="contained"
                 onClick={handleChatSubmit}
-                disabled={!selectedLog || !chatInput}
+                disabled={!selectedLog || !chatInput || isSending}
                 style={{
                   background: 'linear-gradient(135deg, #FF4C4C, #FF8C8C)',
                   color: '#fff',

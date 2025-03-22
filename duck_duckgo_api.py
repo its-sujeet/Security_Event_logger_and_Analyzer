@@ -104,6 +104,29 @@ def new_request(input_text, prev_messages, params):
         logger.error(f"Failed to get response from DuckDuckGo API: {str(e)}")
         return None
 
+# def handle_response(response_text):
+#     try:
+#         lines = response_text.splitlines()
+#         full_message = ""
+#         for line in lines:
+#             if line.startswith("data: "):
+#                 json_data = line[6:]
+#                 try:
+#                     data = json.loads(json_data)
+#                     if "message" in data:
+#                         full_message += data["message"]
+#                 except json.JSONDecodeError as e:
+#                     logger.warning(f"Failed to parse JSON: {json_data} - {str(e)}")
+#                     continue
+#         result = full_message.strip() if full_message else None
+#         logger.debug(f"Parsed message: {result}")
+#         return result
+#     except Exception as e:
+#         logger.error(f"Error handling response: {str(e)}")
+#         return None
+
+
+
 def handle_response(response_text):
     try:
         lines = response_text.splitlines()
@@ -118,12 +141,38 @@ def handle_response(response_text):
                 except json.JSONDecodeError as e:
                     logger.warning(f"Failed to parse JSON: {json_data} - {str(e)}")
                     continue
-        result = full_message.strip() if full_message else None
-        logger.debug(f"Parsed message: {result}")
+        
+        if not full_message:
+            return None
+
+        # Format the response with bold headings and proper spacing
+        formatted_message = ""
+        sections = full_message.split("\n\n")  # Split by double newlines for paragraphs
+        for section in sections:
+            section = section.strip()
+            if section:
+                if section.startswith("### ") or section.startswith("--- "):
+                    # Bold and format main headings
+                    formatted_message += f"**{section.replace('### ', '').replace('--- ', '')}**\n\n"
+                elif section.startswith("- **") or section.startswith("**"):
+                    # Preserve subheadings or already bolded items
+                    formatted_message += f"{section}\n\n"
+                elif section.startswith("- "):
+                    # Format bullet points
+                    formatted_message += f"{section}\n"
+                else:
+                    # Normal text
+                    formatted_message += f"{section}\n\n"
+        
+        result = formatted_message.strip()
+        logger.debug(f"Parsed and formatted message: {result}")
         return result
     except Exception as e:
         logger.error(f"Error handling response: {str(e)}")
         return None
+
+
+
 @app.route("/api/chat", methods=["POST"])
 def chat_api():
     try:
@@ -135,8 +184,20 @@ def chat_api():
         user_input = data["input_text"]
         params = data.get("params", {})  # Optional, default to empty dict
         prev_messages = data.get("prev_messages", "")  # Optional, match frontend
-        event_details = data.get("event_details", None)  # Optional, match frontend
-        logger.debug(f"Received request: input_text={user_input}, params={params}, prev_messages={prev_messages}, event_details={event_details}")
+        
+        # Extract event_details from params if it exists, otherwise from top-level
+        event_details = params.get("event_details", data.get("event_details", None))
+        
+        # Combine event_details with input_text and add vulnerability prompt
+        if event_details:
+            event_details_str = json.dumps(event_details)
+            user_input = (
+                f"{user_input}\n\n"
+                f"Event Details: {event_details_str}\n\n"
+                f"If there are any potential vulnerabilities due to this event, please identify and explain them."
+            )
+        
+        logger.debug(f"Processed request: input_text={user_input}, params={params}, prev_messages={prev_messages}, event_details={event_details}")
 
         vqd_token = fetch_vqd()
         if not vqd_token:
