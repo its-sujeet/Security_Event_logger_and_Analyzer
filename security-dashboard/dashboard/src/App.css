@@ -1,11 +1,88 @@
-#root {
-  max-width: 1280px;
-  margin: 0 5rem;
-  padding: 0 1rem;
-  padding: 2rem;
-  text-align: center;
+/* App.css */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px; /* For horizontal scrollbars */
+}
+
+::-webkit-scrollbar-track {
+  background: #2d2d2d;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #FF4C4C;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #FF8C8C;
+}
+
+.message-container {
+  margin-bottom: 10px;
+}
+
+/* Animation for loading dots */
+@keyframes dots {
+  0% { content: '.'; }
+  33% { content: '..'; }
+  66% { content: '...'; }
+  100% { content: '.'; }
+}
+
+.loading-dots {
+  display: inline-block;
+  width: 20px;
+  text-align: left;
+}
+
+.loading-dots::after {
+  content: '...';
+  animation: dots 1.5s infinite steps(3);
+}
+
+/* Ensure full-screen compatibility */
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Remove conflicting styles from #root */
+#root {
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+}
+
+/* Ensure tables don’t overflow horizontally */
+table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+td, th {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  whiteSpace: nowrap; /* Default to nowrap, overridden where specified */
+}
+
+/* Remove or comment out unused styles */
 .logo {
   height: 6em;
   padding: 1.5em;
@@ -41,65 +118,3 @@
 .read-the-docs {
   color: #888;
 }
-
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: #2d2d2d;
-  border-radius: 10px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #FF4C4C;
-  border-radius: 10px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #FF8C8C;
-}
-
-.message-container {
-  margin-bottom: 10px;
-}
-
-
-
-
-
-
-/* Animation for loading dots */
-@keyframes dots {
-  0% { content: '.'; }
-  33% { content: '..'; }
-  66% { content: '...'; }
-  100% { content: '.'; }
-}
-
-.loading-dots {
-  display: inline-block;
-  width: 20px; /* Adjust width as needed */
-  text-align: left;
-}
-
-.loading-dots::after {
-  content: '...';
-  animation: dots 1.5s infinite steps(3);
-}
-
-
-
