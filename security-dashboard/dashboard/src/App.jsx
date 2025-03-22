@@ -205,28 +205,67 @@ const App = () => {
     setSelectedLog(selected || null);
   };
 
+  // const handleChatSubmit = async () => {
+  //   if (!chatInput || !selectedLog) return;
+
+  //   try {
+  //     console.log('Sending chat request:', { input_text: chatInput, event_details: selectedLog });
+  //     const response = await axios.post('http://127.0.0.1:5143/api/chat', {
+  //       input_text: chatInput,
+  //       event_details: selectedLog,
+  //     }, { timeout: 5000 });
+
+  //     console.log('Chat response:', response.data);
+  //     setChatMessages((prev) => [
+  //       ...prev,
+  //       { user: chatInput, ai: response.data.response, event_id: selectedLog.event_id },
+  //     ]);
+  //     setChatInput('');
+  //     setError(null);
+  //   } catch (error) {
+  //     console.error('Chat API error:', error.response?.data || error.message);
+  //     setError(`Failed to get AI response: ${error.response?.data?.error || error.message}`);
+  //   }
+  // };
+
   const handleChatSubmit = async () => {
     if (!chatInput || !selectedLog) return;
-
+  
     try {
-      console.log('Sending chat request:', { input_text: chatInput, event_details: selectedLog });
+      const prevMessages = chatMessages
+        .filter(msg => msg.event_id === selectedLog.event_id)
+        .map(msg => ({
+          role: msg.user ? 'user' : 'assistant',
+          content: msg.user || msg.ai
+        }));
+  
       const response = await axios.post('http://127.0.0.1:5143/api/chat', {
         input_text: chatInput,
-        event_details: selectedLog,
+        params: { api_model: "o3-mini", event_details: selectedLog },  // Include event_details in params
+        prev_messages: prevMessages.map(msg => JSON.stringify(msg))  // Match backend expectation
       }, { timeout: 5000 });
-
-      console.log('Chat response:', response.data);
-      setChatMessages((prev) => [
-        ...prev,
-        { user: chatInput, ai: response.data.response, event_id: selectedLog.event_id },
-      ]);
-      setChatInput('');
-      setError(null);
+  
+      const responseData = response.data;
+      if (responseData.response) {
+        setChatMessages(prev => [
+          ...prev,
+          {
+            user: chatInput,
+            ai: responseData.response,
+            event_id: selectedLog.event_id
+          }
+        ]);
+        setChatInput('');
+        setError(null);
+      } else {
+        setError(responseData.error || 'Failed to get response');
+      }
     } catch (error) {
-      console.error('Chat API error:', error.response?.data || error.message);
-      setError(`Failed to get AI response: ${error.response?.data?.error || error.message}`);
+      console.error('Chat API error:', error);
+      setError(`Failed to get AI response: ${error.message}`);
     }
   };
+
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', width: '100%', maxWidth: '100vw', marginLeft: 5, marginRight: 95, padding: 0, background: '#1a1a1a', overflowX: 'hidden' }}>

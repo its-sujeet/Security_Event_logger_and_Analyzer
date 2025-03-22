@@ -50,7 +50,7 @@ def fetch_vqd():
             return None
     return vqd
 
-def new_request(input_text, event_details, model="gpt-4o-mini"):
+def new_request(input_text, prev_messages, params):
     global vqd
     
     if not vqd:
@@ -73,21 +73,30 @@ def new_request(input_text, event_details, model="gpt-4o-mini"):
         "Pragma": "no-cache",
         "TE": "trailers",
         "x-vqd-4": vqd,
+        "x-vqd-hash-1": "abcdefg",
         "Cache-Control": "no-store"
     }
     
-    # Combine input text with event details for context
-    event_context = f"Event Details: ID={event_details['event_id']}, Category={event_details['category']}, Source={event_details['source']}, Time={event_details['time_generated']}, Severity={event_details['severity']}, Message={event_details['message']}"
-    full_input = f"{event_context}\nUser Query: {input_text}"
+    model = "o3-mini"
+    if params.get("api_model"):
+        model = params["api_model"]
+    
+    messages = []
+    if prev_messages:
+        messages.append(prev_messages)
+    messages.append(json.dumps({
+        "role": "user",
+        "content": input_text
+    }))
     
     message_data = {
-        "messages": [{"role": "user", "content": full_input}],
+        "messages": [json.loads(m) for m in messages],
         "model": model
     }
     
     try:
         logger.debug(f"Sending request to DuckDuckGo API: {json.dumps(message_data)}")
-        response = requests.post("https://duckduckgo.com/duckchat/v1/chat", headers=headers, data=json.dumps(message_data), timeout=10)
+        response = requests.post("https://duckduckgo.com/duckchat/v1/chat", headers=headers, json=message_data, timeout=10)
         response.raise_for_status()
         logger.debug(f"Response received: {response.text[:100]}...")
         return response.text
@@ -99,9 +108,7 @@ def handle_response(response_text):
     try:
         lines = response_text.splitlines()
         full_message = ""
-        for index, line in enumerate(lines):
-            if index == 0:
-                continue
+        for line in lines:
             if line.startswith("data: "):
                 json_data = line[6:]
                 try:
@@ -117,24 +124,25 @@ def handle_response(response_text):
     except Exception as e:
         logger.error(f"Error handling response: {str(e)}")
         return None
-
 @app.route("/api/chat", methods=["POST"])
 def chat_api():
     try:
         data = request.get_json()
-        if not data or "input_text" not in data or "event_details" not in data:
-            logger.error("Invalid request: Missing input_text or event_details")
-            return jsonify({"error": "Missing input_text or event_details"}), 400
+        if not data or "input_text" not in data:
+            logger.error("Invalid request: Missing input_text")
+            return jsonify({"error": "Missing input_text"}), 400
         
         user_input = data["input_text"]
-        event_details = data["event_details"]
-        logger.debug(f"Received request: input_text={user_input}, event_details={event_details}")
+        params = data.get("params", {})  # Optional, default to empty dict
+        prev_messages = data.get("prev_messages", "")  # Optional, match frontend
+        event_details = data.get("event_details", None)  # Optional, match frontend
+        logger.debug(f"Received request: input_text={user_input}, params={params}, prev_messages={prev_messages}, event_details={event_details}")
 
         vqd_token = fetch_vqd()
         if not vqd_token:
             return jsonify({"error": "Failed to fetch VQD token"}), 500
 
-        response_text = new_request(user_input, event_details)
+        response_text = new_request(user_input, prev_messages, params)
         if not response_text:
             return jsonify({"error": "No response from DuckDuckGo API"}), 500
 
