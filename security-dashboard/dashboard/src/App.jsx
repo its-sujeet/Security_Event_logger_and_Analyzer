@@ -604,8 +604,8 @@ const App = () => {
                               startIcon={<AnalyzeIcon />}
                               onClick={(e) => handleAnalyzeClick(mergedLog.latest, e)}
                               style={{ 
-                                color: '#FF4C4C', 
-                                borderColor: '#FF4C4C', 
+                                color: '#1976D2', 
+                                borderColor: '#1976D2', 
                                 fontSize: '0.7rem',
                                 padding: '2px 8px',
                                 minWidth: '70px',
