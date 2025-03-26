@@ -51,7 +51,7 @@ yarn install
 Install the required frontend packages:
 
 ```bash
-npm install @mui/material react-chartjs-2 chart.js socket.io-client
+npm install @mui/material @mui/icons-material socket.io-client react-chartjs-2 chart.js axios
 ```
 
 ### 4. Start the development server
@@ -124,6 +124,7 @@ Run the following command to start the backend server:
 
 ```bash
 python realtime_logs.py
+python api.py
 ```
 
 The backend will start and listen on `http://localhost:5000`. It will collect Windows Event Logs in real-time and stream them to the frontend via WebSocket.
