@@ -3,3 +3,7 @@ Flask-SocketIO==5.3.0
 pywin32==303
 sqlite3==2.6.0
 flask_cors==3.1.1
+requests==2.26.0
+
+
+

@@ -340,7 +340,7 @@ const App = () => {
         'http://127.0.0.1:5143/api/chat',
         {
           input_text: chatInput,
-          params: { api_model: 'o3-mini', event_details: selectedLog },
+          params: { api_model: 'gemini-2.0-flash', event_details: selectedLog },
           prev_messages: prevMessages.map((msg) => JSON.stringify(msg)),
         },
         { timeout: 15000, responseEncoding: 'utf8' }
